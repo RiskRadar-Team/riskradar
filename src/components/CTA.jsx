@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function CTA() {
   return (
     <section id="cta"
@@ -17,9 +19,9 @@ export default function CTA() {
         </p>
 
         <div className="mt-8 flex justify-center">
-          <button className="rounded-lg cursor-pointer bg-cyan-400 px-6 py-3 font-medium text-slate-950 transition hover:bg-cyan-300">
+          <Link href="/register" className="rounded-lg cursor-pointer bg-cyan-400 px-6 py-3 font-medium text-slate-950 transition hover:bg-cyan-300">
             Get Started
-          </button>
+          </Link>
         </div>
       </div>
     </section>

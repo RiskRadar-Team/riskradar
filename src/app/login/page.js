@@ -4,12 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,32 +19,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
+  event.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      const response = await fetch(`${API_URL}/riskradar/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-        credentials: "include",
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data?.data) {
-        router.push("/dashboard");
-      } else {
-        setError(data?.message || "Invalid email or password.");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  try {
+    await login(email, password);
+    router.push("/dashboard");
+  } catch (err) {
+    setError(err.message || "Invalid email or password.");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-900 text-white">

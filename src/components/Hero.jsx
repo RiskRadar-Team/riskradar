@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Hero() {
   return (
     <section
@@ -26,13 +28,13 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-            <button className="rounded-lg cursor-pointer bg-cyan-400 px-6 py-3 font-medium text-slate-950 transition hover:bg-cyan-300">
+            <Link href="/register" className="rounded-lg cursor-pointer bg-cyan-400 px-6 py-3 font-medium text-slate-950 transition hover:bg-cyan-300 text-center">
               Get Started
-            </button>
+            </Link>
 
-            <button className="rounded-lg cursor-pointer border border-white/20 px-6 py-3 font-medium text-slate-200 transition hover:border-white/40 hover:bg-white/5">
+            <a href="#how-it-works" className="rounded-lg cursor-pointer border border-white/20 px-6 py-3 font-medium text-slate-200 transition hover:border-white/40 hover:bg-white/5 text-center">
               Learn How It Works
-            </button>
+            </a>
           </div>
         </div>
 
