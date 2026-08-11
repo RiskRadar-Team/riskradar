@@ -78,7 +78,7 @@ export default function DomainFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md cursor-pointer p-1 text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
+            className="rounded-md p-1 text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
             aria-label="Close"
           >
             ✕
@@ -116,7 +116,7 @@ export default function DomainFormModal({
                   type="button"
                   key={option}
                   onClick={() => update("list_type", option)}
-                  className={`rounded-lg border cursor-pointer px-3 py-2 text-sm font-medium transition ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                     form.list_type === option
                       ? option === "BLACKLIST"
                         ? "border-rose-400/40 bg-rose-400/10 text-rose-400"
@@ -138,12 +138,12 @@ export default function DomainFormModal({
               <select
                 value={form.threat_type}
                 onChange={(e) => update("threat_type", e.target.value)}
-                className="w-full rounded-lg cursor-pointer border border-white/10 bg-[#0a0e1a] px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50"
+                className="w-full rounded-lg border border-white/10 bg-[#0a0e1a] px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50"
               >
                 <option value="">Select a threat type</option>
                 {threatTypes.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name || t.threat_type || t.title}
+                    {t.display_name}
                   </option>
                 ))}
               </select>
@@ -197,14 +197,14 @@ export default function DomainFormModal({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="rounded-lg cursor-pointer border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/5 disabled:opacity-50"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/5 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg cursor-pointer bg-cyan-400 px-4 py-2 text-sm font-medium text-[#0a0e1a] transition hover:bg-cyan-300 disabled:opacity-50"
+              className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-medium text-[#0a0e1a] transition hover:bg-cyan-300 disabled:opacity-50"
             >
               {submitting
                 ? "Saving…"

@@ -12,8 +12,8 @@ function toQueryString(params = {}) {
   return qs ? `?${qs}` : "";
 }
 
-// --- synchronous — analysis runs server-side, result comes
-// back in the same response, no polling needed ---
+// --- One-shot scans (synchronous — analysis runs server-side, result comes
+// back in the same response, no polling needed) ---
 
 export function scanUrl(url) {
   return apiRequest("/scan/url", { method: "POST", body: { url } });

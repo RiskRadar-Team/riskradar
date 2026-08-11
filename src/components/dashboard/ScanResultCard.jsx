@@ -43,15 +43,46 @@ function RecommendationBadge({ recommendation }) {
   );
 }
 
+const SOURCE_STYLES = {
+  GEMINI_AI: "border-violet-400/20 bg-violet-400/10 text-violet-300",
+  VIRUSTOTAL: "border-orange-400/20 bg-orange-400/10 text-orange-300",
+  GOOGLE_SAFE_BROWSING: "border-orange-400/20 bg-orange-400/10 text-orange-300",
+  // Blacklist/whitelist database lookups (domain, url, keyword tables)
+  DOMAIN_DATABASE: "border-rose-400/20 bg-rose-400/10 text-rose-300",
+  URL_DATABASE: "border-rose-400/20 bg-rose-400/10 text-rose-300",
+  PHISHING_KEYWORD_DATABASE: "border-rose-400/20 bg-rose-400/10 text-rose-300",
+  KEYWORD_DATABASE: "border-rose-400/20 bg-rose-400/10 text-rose-300",
+  PHISHING_KEYWORD: "border-rose-400/20 bg-rose-400/10 text-rose-300",
+};
+
+function SourceBadge({ source }) {
+  if (!source) return null;
+  const label = source.replace(/_/g, " ");
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+        SOURCE_STYLES[source] || "border-white/10 bg-white/5 text-slate-500"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function FindingRow({ finding }) {
+  const confidence = finding.evidence?.confidence;
   return (
     <div className="rounded-lg border border-white/10 bg-[#0a0e1a] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs uppercase tracking-wide text-slate-400">
-          {finding.finding_value?.replace(/_/g, " ") || finding.finding_type}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs uppercase tracking-wide text-slate-400">
+            {finding.finding_value?.replace(/_/g, " ") || finding.finding_type}
+          </span>
+          <SourceBadge source={finding.source} />
+        </div>
         <span className={`text-xs font-medium ${SEVERITY_TEXT[finding.severity] || "text-slate-400"}`}>
           Severity {finding.severity} · +{finding.score}
+          {confidence !== undefined && ` · ${confidence}% confidence`}
         </span>
       </div>
       {finding.description && (
@@ -61,7 +92,12 @@ function FindingRow({ finding }) {
   );
 }
 
-
+/**
+ * Generic result display used by Scan URL, Email Analysis, and Message
+ * Analysis. Each page normalizes its own response shape into these props
+ * before rendering, since the backend's three scan endpoints don't share an
+ * identical response envelope.
+ */
 export default function ScanResultCard({
   riskLevel,
   riskScore,

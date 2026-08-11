@@ -83,11 +83,46 @@ export async function apiRequest(
   }
 
   if (!res.ok || json?.success === false) {
-    const error = new Error(json?.message || `Request failed (${res.status})`);
+    const error = new Error(buildErrorMessage(json, res));
     error.statusCode = json?.statusCode ?? res.status;
     error.details = json;
+    // Per-field messages, keyed by field name, for forms that want to show
+    // an error under the specific input rather than (or in addition to) a
+    // single banner — e.g. fieldErrors.domain_name.
+    error.fieldErrors = buildFieldErrors(json);
     throw error;
   }
 
   return json;
+}
+
+// express-validator (via validateRequest.js) returns a top-level generic
+// "Validation failed." message plus a detailed `errors` array with the
+// actual per-field reasons (each item has a `msg`, and usually `path`).
+// Surface those specific messages instead of the generic one whenever
+// they're present, so the user sees e.g. "Domain name is required." rather
+// than just "Validation failed."
+function buildErrorMessage(json, res) {
+  if (Array.isArray(json?.errors) && json.errors.length > 0) {
+    const messages = json.errors
+      .map((e) => e?.msg)
+      .filter(Boolean);
+    if (messages.length > 0) {
+      // De-duplicate in case the same field fails more than one rule
+      return [...new Set(messages)].join(" ");
+    }
+  }
+  return json?.message || `Request failed (${res.status})`;
+}
+
+function buildFieldErrors(json) {
+  if (!Array.isArray(json?.errors)) return {};
+  const fieldErrors = {};
+  for (const e of json.errors) {
+    const field = e?.path || e?.param;
+    if (field && e?.msg && !fieldErrors[field]) {
+      fieldErrors[field] = e.msg;
+    }
+  }
+  return fieldErrors;
 }

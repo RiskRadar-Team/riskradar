@@ -61,7 +61,7 @@ export default function ScanUrlPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-medium text-[#0a0e1a] transition hover:bg-cyan-300 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-medium text-[#0a0e1a] transition hover:bg-cyan-300 disabled:opacity-50"
           >
             {submitting && (
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#0a0e1a] border-t-transparent" />
@@ -103,6 +103,18 @@ export default function ScanUrlPage() {
                         : "No"
                     }
                   />
+                  <Detail label="Suspicious TLD" value={urlScan.contains_suspicious_tld ? "Yes" : "No"} />
+                  <Detail
+                    label="Google Safe Browsing"
+                    value={formatSafetyCheck(urlScan.google_safe)}
+                  />
+                  <Detail
+                    label="VirusTotal"
+                    value={formatSafetyCheck(urlScan.virustotal_safe)}
+                  />
+                  {urlScan.reputation_score !== null && (
+                    <Detail label="Reputation score" value={`${urlScan.reputation_score}/100`} />
+                  )}
                 </div>
               )
             }
@@ -121,11 +133,19 @@ export default function ScanUrlPage() {
   );
 }
 
+function formatSafetyCheck(value) {
+  if (value === null || value === undefined) return "Not configured";
+  return value ? "Safe" : "Flagged";
+}
+
 function Detail({ label, value }) {
+  const isConcerning = value === "Yes" || value === "Flagged";
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-0.5 text-white">{value}</p>
+      <p className={`mt-0.5 ${isConcerning ? "text-rose-400" : "text-white"}`}>
+        {value}
+      </p>
     </div>
   );
 }

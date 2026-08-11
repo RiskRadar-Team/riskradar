@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Shield,
   Monitor,
+  Users,
 } from "lucide-react";
 
 const navItems = [
@@ -29,6 +30,7 @@ const adminNavItems = [
   { label: "Domain Management", href: "/admin/domains", icon: Shield },
   { label: "URL Management", href: "/admin/urls", icon: Link2 },
   { label: "Keyword Management", href: "/admin/keywords", icon: MessageSquare },
+  { label: "User Management", href: "/admin/users", icon: Users },
 ];
 
 export default function Sidebar({ user, onNavigate }) {
