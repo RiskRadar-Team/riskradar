@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -12,14 +13,12 @@ import {
   AlertTriangle,
   ShieldAlert,
   Info,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import RadarVisual from "@/components/dashboard/RadarVisual";
-import {
-  mockUser,
-  mockThreatOverview,
-  mockProtectionScore,
-  mockRecentActivity,
-} from "@/lib/mockDashboardData";
+import { useAuth } from "@/context/AuthContext";
+import { getDashboard } from "@/lib/dashboardService";
 
 const quickActions = [
   {
@@ -89,14 +88,59 @@ const statColorMap = {
   amber: { text: "text-amber-400", stroke: "#FBBF24" },
 };
 
-const activityIconMap = {
-  safe: { icon: ShieldCheck, color: "text-emerald-400 bg-emerald-400/10" },
-  warning: { icon: AlertTriangle, color: "text-amber-400 bg-amber-400/10" },
-  danger: { icon: ShieldAlert, color: "text-red-400 bg-red-400/10" },
-  info: { icon: Info, color: "text-blue-400 bg-blue-400/10" },
-};
+const PERIOD_OPTIONS = [
+  { value: "7d", label: "7 days" },
+  { value: "30d", label: "30 days" },
+  { value: "90d", label: "90 days" },
+  { value: "all", label: "All time" },
+];
+
+// Maps a recentScans row (status + riskLevel.code) to the visual language
+// the mock activity feed used (safe / warning / danger / info).
+function getActivityVisual(scan) {
+  if (scan.status === "FAILED") {
+    return { kind: "info", icon: Info, color: "text-blue-400 bg-blue-400/10" };
+  }
+  const code = scan.riskLevel?.code;
+  if (code === "HIGH" || code === "CRITICAL") {
+    return { kind: "danger", icon: ShieldAlert, color: "text-red-400 bg-red-400/10" };
+  }
+  if (code === "MEDIUM") {
+    return { kind: "warning", icon: AlertTriangle, color: "text-amber-400 bg-amber-400/10" };
+  }
+  // SAFE / LOW / unknown
+  return { kind: "safe", icon: ShieldCheck, color: "text-emerald-400 bg-emerald-400/10" };
+}
+
+function getActivityTitle(scan) {
+  const typeLabel =
+    scan.type === "URL" ? "URL" : scan.type === "EMAIL" ? "Email" : "Message";
+
+  if (scan.status === "FAILED") return `${typeLabel} scan failed`;
+
+  const code = scan.riskLevel?.code;
+  if (code === "HIGH" || code === "CRITICAL") return `Dangerous ${typeLabel.toLowerCase()} detected`;
+  if (code === "MEDIUM") return `Suspicious ${typeLabel.toLowerCase()} detected`;
+  return `${typeLabel} scan completed`;
+}
+
+function formatRelativeTime(isoString) {
+  if (!isoString) return "";
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 function Sparkline({ points, stroke }) {
+  // Guard: Math.max/min on an empty array (no activity in the trend
+  // window) returns ±Infinity, and a single point has no range to draw.
+  if (!points || points.length < 2) return null;
+
   const max = Math.max(...points);
   const min = Math.min(...points);
   const range = max - min || 1;
@@ -143,6 +187,44 @@ function ProtectionDonut({ score }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  // Response shape is inconsistent across this backend (Users admin
+  // endpoints are camelCase, others snake_case) — fall back across both
+  // rather than assuming which one /user/profile uses.
+  const displayName = user?.fullName || user?.full_name || "there";
+
+  const [period, setPeriod] = useState("30d");
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await getDashboard(period);
+      setDashboard(res.data);
+    } catch (err) {
+      setErrorMessage(err.message || "Couldn't load your dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const summary = dashboard?.summary;
+  const threatTrend = dashboard?.threatTrend || [];
+  const recentScans = dashboard?.recentScans || [];
+
+  const threatsSparkline = threatTrend.map((t) => t.threatsDetected);
+  const safeSparkline = threatTrend.map((t) => t.safeScans);
+
+  const periodLabel =
+    PERIOD_OPTIONS.find((p) => p.value === period)?.label || period;
+
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
       {/* Left column */}
@@ -156,7 +238,7 @@ export default function DashboardPage() {
         >
           <div>
             <h1 className="text-3xl font-semibold text-white">
-              Welcome Back, <span className="text-cyan-400">{mockUser.name}</span> 👋
+              Welcome Back, <span className="text-cyan-400">{displayName}</span> 👋
             </h1>
             <p className="mt-2 max-w-md text-slate-400">
               Check a link or message before you trust it. Your security workspace is ready.
@@ -215,39 +297,80 @@ export default function DashboardPage() {
 
         {/* Threat overview */}
         <div>
-          <div className="mb-4 flex items-center gap-3">
-            <span className="text-xs font-semibold tracking-wider text-slate-400">
-              THREAT OVERVIEW (TODAY)
-            </span>
-            <div className="h-px flex-1 bg-white/5" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {mockThreatOverview.map((stat) => {
-              const c = statColorMap[stat.color];
-              return (
-                <div
-                  key={stat.id}
-                  className="rounded-xl border border-white/5 bg-white/[0.02] p-3"
-                >
-                  <p className={`text-xl font-semibold ${c.text}`}>{stat.value}</p>
-                  <p className="mt-1 text-xs text-slate-400">{stat.label}</p>
-                  <div className="mt-2">
-                    <Sparkline points={stat.sparkline} stroke={c.stroke} />
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Protection score */}
-            <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3">
-              <div>
-                <p className="text-xl font-semibold text-blue-400">{mockProtectionScore}%</p>
-                <p className="mt-1 text-xs text-slate-400">Protection Score</p>
-              </div>
-              <ProtectionDonut score={mockProtectionScore} />
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold tracking-wider text-slate-400">
+                THREAT OVERVIEW ({periodLabel.toUpperCase()})
+              </span>
             </div>
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="rounded-lg border border-white/10 bg-[#0d1526] px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-cyan-400/50"
+            >
+              {PERIOD_OPTIONS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {errorMessage && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-400">
+              <AlertCircle size={15} />
+              {errorMessage}
+            </div>
+          )}
+
+          {loading && !summary ? (
+            <div className="flex items-center justify-center rounded-xl border border-white/5 bg-white/[0.02] py-10 text-slate-500">
+              <Loader2 size={18} className="animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                <p className={`text-xl font-semibold ${statColorMap.red.text}`}>
+                  {summary?.threatsDetected ?? 0}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">Threats Detected</p>
+                <div className="mt-2">
+                  <Sparkline points={threatsSparkline} stroke={statColorMap.red.stroke} />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                <p className={`text-xl font-semibold ${statColorMap.green.text}`}>
+                  {summary?.safeScans ?? 0}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">Safe Scans</p>
+                <div className="mt-2">
+                  <Sparkline points={safeSparkline} stroke={statColorMap.green.stroke} />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                <p className={`text-xl font-semibold ${statColorMap.amber.text}`}>
+                  {summary?.highCriticalThreats ?? 0}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">High/Critical Threats</p>
+                <p className="mt-2 text-xs text-slate-600">
+                  of {summary?.totalScans ?? 0} total scans
+                </p>
+              </div>
+
+              {/* Protection score */}
+              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                <div>
+                  <p className="text-xl font-semibold text-blue-400">
+                    {summary?.securityScore ?? 100}%
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">Protection Score</p>
+                </div>
+                <ProtectionDonut score={summary?.securityScore ?? 100} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -262,26 +385,42 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="flex flex-col gap-5">
-            {mockRecentActivity.map((item) => {
-              const a = activityIconMap[item.type];
-              const Icon = a.icon;
-              return (
-                <div key={item.id} className="flex items-start gap-3">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${a.color}`}>
-                    <Icon size={16} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium text-white">{item.title}</p>
-                      <span className="shrink-0 text-xs text-slate-500">{item.time}</span>
+          {loading && recentScans.length === 0 ? (
+            <div className="flex items-center justify-center py-10 text-slate-500">
+              <Loader2 size={18} className="animate-spin" />
+            </div>
+          ) : recentScans.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-500">
+              No scans yet — run your first investigation above.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {recentScans.map((scan) => {
+                const visual = getActivityVisual(scan);
+                const Icon = visual.icon;
+                return (
+                  <div key={scan.id} className="flex items-start gap-3">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${visual.color}`}>
+                      <Icon size={16} />
                     </div>
-                    <p className="truncate text-xs text-slate-500">{item.subtitle}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-white">
+                          {getActivityTitle(scan)}
+                        </p>
+                        <span className="shrink-0 text-xs text-slate-500">
+                          {formatRelativeTime(scan.createdAt)}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-slate-500">
+                        {scan.input || "—"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
