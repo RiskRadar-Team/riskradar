@@ -93,6 +93,13 @@ export function AuthProvider({ children }) {
     router.push("/login");
   }, [router]);
 
+  // Merge partial updates (e.g. after a profile edit) into the cached user
+  // so places like Sidebar that read `user` reflect the change immediately,
+  // without needing a full page reload / re-bootstrap.
+  const updateUser = useCallback((partialUser) => {
+    setUser((prev) => (prev ? { ...prev, ...partialUser } : prev));
+  }, []);
+
   const value = {
     user,
     loading,
@@ -102,6 +109,7 @@ export function AuthProvider({ children }) {
     register,
     logout,
     logoutAll,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
