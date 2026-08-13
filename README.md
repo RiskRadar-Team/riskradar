@@ -91,24 +91,24 @@ Examples of frontend-connected backend workflows include:
 
   Workflow             Backend endpoint
   -------------------- ----------------------------------------
-  Register             `POST /riskradar/auth/register`
-  Login                `POST /riskradar/auth/login`
-  Refresh session      `POST /riskradar/auth/refresh-token`
-  Logout               `POST /riskradar/auth/logout`
-  Forgot password      `POST /riskradar/auth/forgot-password`
-  Reset password       `POST /riskradar/auth/reset-password`
-  URL scan             `POST /riskradar/scan/url`
-  Email scan           `POST /riskradar/scan/email`
-  Message scan         `POST /riskradar/scan/message`
-  User history         `GET /riskradar/history`
-  User dashboard       `GET /riskradar/dashboard`
-  Admin dashboard      `GET /riskradar/admin/dashboard`
-  Admin scans          `GET /riskradar/admin/scans`
-  Domain management    `/riskradar/domain`
-  URL intelligence     `/riskradar/url`
-  Phishing keywords    `/riskradar/keyword`
-  Threat types         `/riskradar/threat`
-  Keyword categories   `/riskradar/keyword-category`
+  - Register             `POST /riskradar/auth/register`
+  - Login                `POST /riskradar/auth/login`
+  - Refresh session      `POST /riskradar/auth/refresh-token`
+  - Logout               `POST /riskradar/auth/logout`
+  - Forgot password      `POST /riskradar/auth/forgot-password`
+  - Reset password       `POST /riskradar/auth/reset-password`
+  - URL scan             `POST /riskradar/scan/url`
+  - Email scan           `POST /riskradar/scan/email`
+  - Message scan         `POST /riskradar/scan/message`
+  - User history         `GET /riskradar/history`
+  - User dashboard       `GET /riskradar/dashboard`
+  - Admin dashboard      `GET /riskradar/admin/dashboard`
+  - Admin scans          `GET /riskradar/admin/scans`
+  - Domain management    `/riskradar/domain`
+  - URL intelligence     `/riskradar/url`
+  - Phishing keywords    `/riskradar/keyword`
+  - Threat types         `/riskradar/threat`
+  - Keyword categories   `/riskradar/keyword-category`
 
 Protected API requests use the authenticated user's access token.
 Refresh-token authentication is handled through the backend's HTTP-only
