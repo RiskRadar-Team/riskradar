@@ -6,9 +6,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
@@ -19,19 +16,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event) {
-  event.preventDefault();
-  setError("");
-  setLoading(true);
+    event.preventDefault();
+    setError("");
+    setLoading(true);
 
-  try {
-    await login(email, password);
-    router.push("/dashboard");
-  } catch (err) {
-    setError(err.message || "Invalid email or password.");
-  } finally {
-    setLoading(false);
+    try {
+      await login(email, password);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err.message || "Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
@@ -111,37 +108,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-white/60 text-sm">OR</p>
-
-        <div className="flex gap-x-5">
-          
-          <a
-            href={`${API_URL}/riskradar/auth/google`}
-            aria-label="Continue with Google"
-            className="border p-2 rounded-lg border-violet-400/40 bg-slate-950 transition hover:bg-slate-900"
-          >
-            <GoogleIcon />
-          </a>
-          
-          <a
-            href={`${API_URL}/riskradar/auth/facebook`}
-            aria-label="Continue with Facebook"
-            className="border p-2 rounded-lg border-violet-400/40 bg-slate-950 transition hover:bg-slate-900"
-          >
-            <FacebookIcon />
-          </a>
-          
-          <a
-            href={`${API_URL}/riskradar/auth/apple`}
-            aria-label="Continue with Apple"
-            className="border p-2 rounded-lg border-violet-400/40 bg-slate-950 transition hover:bg-slate-900"
-          >
-            <AppleIcon />
-          </a>
-        </div>
-
         <div className="flex gap-1">
-          <p className="text-sm text-white/80">Don&apos;t have an account?</p>
+          <p className="text-white/60 text-sm">Don&apos;t have an account?</p>
           <Link
             href="/register"
             className="text-sm text-white/80 transition hover:text-cyan-400 underline"
@@ -151,32 +119,5 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.54-5.17 3.54-8.87Z" />
-      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.9l-3.88-3a7.4 7.4 0 0 1-4.06 1.14c-3.12 0-5.76-2.11-6.7-4.94H1.3v3.1A12 12 0 0 0 12 24Z" />
-      <path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1Z" />
-      <path fill="#EA4335" d="M12 4.75c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.3 6.6l4 3.1c.94-2.83 3.58-4.95 6.7-4.95Z" />
-    </svg>
-  );
-}
-
-function FacebookIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#1877F2" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.89v2.25h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07Z" />
-    </svg>
-  );
-}
-
-function AppleIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-      <path d="M16.36 1.43c0 1.14-.47 2.24-1.19 3.04-.8.87-2.11 1.55-3.17 1.46-.13-1.09.44-2.24 1.15-3 .8-.88 2.19-1.55 3.21-1.5ZM20.85 17.32c-.5 1.16-.74 1.67-1.39 2.7-.9 1.43-2.18 3.2-3.75 3.22-1.4.02-1.76-.9-3.66-.89-1.9.01-2.3.9-3.7.88-1.57-.02-2.78-1.62-3.68-3.05-2.5-3.98-2.77-8.66-1.22-11.15.97-1.55 2.62-2.53 4.19-2.53 1.6 0 2.6.9 3.93.9 1.29 0 2.06-.9 3.93-.9 1.4 0 2.88.76 3.94 2.08-3.46 1.9-2.9 6.83.41 8.74Z" />
-    </svg>
   );
 }

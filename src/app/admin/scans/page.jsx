@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ShieldCheck,
   AlertTriangle,
@@ -10,13 +12,16 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  X,
 } from "lucide-react";
-import { listHistory } from "@/lib/historyService";
+import { listAdminScans } from "@/lib/adminScanService";
+import { listUsers } from "@/lib/userService";
 
 const PAGE_SIZE = 15;
 
 const SCAN_TYPE_OPTIONS = ["URL", "EMAIL", "MESSAGE"];
 const RISK_LEVEL_OPTIONS = ["SAFE", "LOW", "MEDIUM", "HIGH", "CRITICAL"];
+const STATUS_OPTIONS = ["PENDING", "PROCESSING", "COMPLETED", "FAILED"];
 
 const RISK_COLOR_HEX = {
   green: "#34D399",
@@ -26,9 +31,12 @@ const RISK_COLOR_HEX = {
   red: "#F87171",
 };
 
-function StatusVisual({ status, riskLevel }) {
+function statusVisual(status, riskLevel) {
   if (status === "FAILED") {
     return { icon: Info, hex: "#60A5FA", label: "Failed" };
+  }
+  if (status === "PENDING" || status === "PROCESSING") {
+    return { icon: Info, hex: "#94A3B8", label: status };
   }
   if (!riskLevel) return { icon: Info, hex: "#94A3B8", label: "—" };
   const hex = RISK_COLOR_HEX[riskLevel.color] || "#94A3B8";
@@ -42,7 +50,7 @@ function StatusVisual({ status, riskLevel }) {
 }
 
 function RiskBadge({ status, riskLevel }) {
-  const v = StatusVisual({ status, riskLevel });
+  const v = statusVisual(status, riskLevel);
   const Icon = v.icon;
   return (
     <span
@@ -61,15 +69,29 @@ function formatDateTime(isoString) {
 }
 
 const EMPTY_FILTERS = {
+  userId: "",
   scanType: "",
   riskLevel: "",
   isPhishing: "",
+  status: "",
   from: "",
   to: "",
 };
 
-export default function DetectionHistoryPage() {
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
+export default function AdminScanBrowserPage() {
+  const searchParams = useSearchParams();
+  const initialUserId = searchParams.get("userId") || "";
+
+  const [filters, setFilters] = useState({ ...EMPTY_FILTERS, userId: initialUserId });
+  const [selectedUser, setSelectedUser] = useState(
+    initialUserId ? { id: initialUserId, fullName: null, email: null } : null
+  );
+  const [userQuery, setUserQuery] = useState("");
+  const [userMatches, setUserMatches] = useState([]);
+  const [userSearchOpen, setUserSearchOpen] = useState(false);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState(null);
+  const userInputRef = useRef(null);
   const [page, setPage] = useState(1);
 
   const [scans, setScans] = useState([]);
@@ -86,21 +108,23 @@ export default function DetectionHistoryPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const fetchHistory = useCallback(
+  const fetchScans = useCallback(
     async ({ silent = false } = {}) => {
       if (!silent) setLoading(true);
       setErrorMessage("");
       try {
-        const res = await listHistory({
+        const res = await listAdminScans({
           page,
           limit: PAGE_SIZE,
+          userId: filters.userId || undefined,
           scanType: filters.scanType || undefined,
           riskLevel: filters.riskLevel || undefined,
           isPhishing: filters.isPhishing || undefined,
+          status: filters.status || undefined,
           from: filters.from || undefined,
           to: filters.to || undefined,
         });
-        setScans(res.data.history || []);
+        setScans(res.data.scans || []);
         setPagination(
           res.data.pagination || {
             page: 1,
@@ -112,7 +136,7 @@ export default function DetectionHistoryPage() {
           }
         );
       } catch (err) {
-        setErrorMessage(err.message || "Couldn't load scan history.");
+        setErrorMessage(err.message || "Couldn't load scans.");
       } finally {
         if (!silent) setLoading(false);
       }
@@ -121,13 +145,13 @@ export default function DetectionHistoryPage() {
   );
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    fetchScans();
+  }, [fetchScans]);
 
   async function handleManualRefresh() {
     setRefreshing(true);
     try {
-      await fetchHistory({ silent: true });
+      await fetchScans({ silent: true });
     } finally {
       setRefreshing(false);
     }
@@ -138,23 +162,71 @@ export default function DetectionHistoryPage() {
     setPage(1);
   }
 
+  // Debounced search-as-you-type against the same user search that powers
+  // User Management, so admins can look up "by name" even though the scans
+  // endpoint itself only accepts a userId.
+  useEffect(() => {
+    if (!userQuery.trim()) {
+      setUserMatches([]);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      setUserSearchLoading(true);
+      try {
+        const res = await listUsers({ search: userQuery.trim(), limit: 5 });
+        setUserMatches(res.data.users || []);
+      } catch {
+        setUserMatches([]);
+      } finally {
+        setUserSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [userQuery]);
+
+  function openDropdown() {
+    setUserSearchOpen(true);
+    if (userInputRef.current) {
+      const rect = userInputRef.current.getBoundingClientRect();
+      setDropdownRect({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }
+  function selectUser(user) {
+    setSelectedUser(user);
+    setUserQuery("");
+    setUserMatches([]);
+    setUserSearchOpen(false);
+    updateFilter("userId", user.id);
+  }
+
+  function clearSelectedUser() {
+    setSelectedUser(null);
+    updateFilter("userId", "");
+  }
+
   function clearFilters() {
     setFilters(EMPTY_FILTERS);
+    setSelectedUser(null);
+    setUserQuery("");
     setPage(1);
   }
 
   const hasFilters = Object.values(filters).some((v) => v !== "");
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Dashboard
+            Admin
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-white">Detection History</h1>
+          <h1 className="mt-1 text-2xl font-bold text-white">Scan Browser</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Every scan you've run — URL, email, and message analysis.
+            Every scan run on the platform, across all users.
           </p>
         </div>
         <button
@@ -168,8 +240,17 @@ export default function DetectionHistoryPage() {
         </button>
       </div>
 
+      
+      <p className="mt-1.5 text-xs text-slate-600">
+        Or click "View scans" next to a user in{" "}
+        <Link href="/admin/users" className="text-cyan-400 hover:underline">
+          User Management
+        </Link>{" "}
+        to jump straight here, already filtered.
+      </p>
+
       {/* Filters */}
-      <div className="mt-6 flex flex-wrap items-end gap-3">
+      <div className="mt-4 flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs text-slate-500">Type</label>
           <select
@@ -212,6 +293,22 @@ export default function DetectionHistoryPage() {
             <option value="">All results</option>
             <option value="true">Flagged only</option>
             <option value="false">Safe only</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Status</label>
+          <select
+            value={filters.status}
+            onChange={(e) => updateFilter("status", e.target.value)}
+            className="rounded-lg border border-white/10 bg-[#0d1526] px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-cyan-400/50"
+          >
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -265,13 +362,14 @@ export default function DetectionHistoryPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[860px] text-left text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 font-medium">User</th>
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Input</th>
                   <th className="px-4 py-3 font-medium">Result</th>
-                  <th className="px-4 py-3 font-medium">Risk score</th>
+                  <th className="px-4 py-3 font-medium">Score</th>
                   <th className="px-4 py-3 font-medium">Scanned</th>
                   <th className="px-4 py-3 font-medium text-right">Details</th>
                 </tr>
@@ -282,22 +380,24 @@ export default function DetectionHistoryPage() {
                     key={scan.id}
                     className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]"
                   >
+                    <td className="px-4 py-3">
+                      <p className="truncate text-slate-300">{scan.user?.fullName || "Unknown"}</p>
+                      <p className="truncate text-xs text-slate-500">{scan.user?.email}</p>
+                    </td>
                     <td className="px-4 py-3 text-slate-300">{scan.scanType}</td>
-                    <td className="max-w-[240px] truncate px-4 py-3 text-slate-400">
+                    <td className="max-w-[220px] truncate px-4 py-3 text-slate-400">
                       {scan.input || "—"}
                     </td>
                     <td className="px-4 py-3">
                       <RiskBadge status={scan.status} riskLevel={scan.riskLevel} />
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
-                      {scan.riskScore ?? "—"}
-                    </td>
+                    <td className="px-4 py-3 text-slate-400">{scan.riskScore ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-500">
                       {formatDateTime(scan.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/dashboard/history/${scan.id}`}
+                        href={`/admin/scans/${scan.id}`}
                         className="text-xs font-medium text-cyan-400 hover:underline"
                       >
                         View

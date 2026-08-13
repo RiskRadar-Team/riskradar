@@ -94,7 +94,11 @@ export default function ScanUrlPage() {
               urlScan && (
                 <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 text-sm sm:grid-cols-3">
                   <Detail label="Domain" value={urlScan.domain_name} />
-                  <Detail label="HTTPS" value={urlScan.uses_https ? "Yes" : "No"} />
+                  <Detail
+                    label="HTTPS"
+                    value={urlScan.uses_https ? "Yes" : "No"}
+                    concerning={!urlScan.uses_https}
+                  />
                   <Detail
                     label="Blacklisted"
                     value={
@@ -102,15 +106,22 @@ export default function ScanUrlPage() {
                         ? "Yes"
                         : "No"
                     }
+                    concerning={urlScan.domain_blacklisted || urlScan.url_blacklisted}
                   />
-                  <Detail label="Suspicious TLD" value={urlScan.contains_suspicious_tld ? "Yes" : "No"} />
+                  <Detail
+                    label="Suspicious TLD"
+                    value={urlScan.contains_suspicious_tld ? "Yes" : "No"}
+                    concerning={urlScan.contains_suspicious_tld}
+                  />
                   <Detail
                     label="Google Safe Browsing"
-                    value={formatSafetyCheck(urlScan.google_safe)}
+                    value={formatReputationCheck(urlScan.api_response?.reputation?.google)}
+                    concerning={urlScan.google_safe === false}
                   />
                   <Detail
                     label="VirusTotal"
-                    value={formatSafetyCheck(urlScan.virustotal_safe)}
+                    value={formatReputationCheck(urlScan.api_response?.reputation?.virustotal)}
+                    concerning={urlScan.virustotal_safe === false}
                   />
                   {urlScan.reputation_score !== null && (
                     <Detail label="Reputation score" value={`${urlScan.reputation_score}/100`} />
@@ -133,17 +144,29 @@ export default function ScanUrlPage() {
   );
 }
 
-function formatSafetyCheck(value) {
-  if (value === null || value === undefined) return "Not configured";
-  return value ? "Safe" : "Flagged";
+// Reads the provider's full { enabled, safe, error } shape (not just the
+// flattened boolean) so "no API key configured" and "key works but this
+// URL has no data yet" show as distinct, accurate states instead of both
+// collapsing into a generic "Not configured".
+function formatReputationCheck(provider) {
+  if (!provider) return "Not configured";
+  if (!provider.enabled) return "Not configured";
+  if (provider.safe === null || provider.safe === undefined) {
+    return provider.error?.toLowerCase().includes("not been analyzed")
+      ? "Not yet analyzed"
+      : "No result";
+  }
+  return provider.safe ? "Safe" : "Flagged";
 }
 
-function Detail({ label, value }) {
-  const isConcerning = value === "Yes" || value === "Flagged";
+// `concerning` is now passed explicitly per field rather than inferred from
+// the display text — "Yes" means bad for Blacklisted/Suspicious TLD, but
+// good for HTTPS, so the string value alone can't tell us which color to use.
+function Detail({ label, value, concerning = false }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-0.5 ${isConcerning ? "text-rose-400" : "text-white"}`}>
+      <p className={`mt-0.5 ${concerning ? "text-rose-400" : "text-white"}`}>
         {value}
       </p>
     </div>

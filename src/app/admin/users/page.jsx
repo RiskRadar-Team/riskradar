@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import {
   listUsers,
   updateUserStatus,
@@ -76,6 +77,9 @@ export default function UserManagementPage() {
 
   const fetchUsers = useCallback(
     async ({ silent = false, suppressError = false } = {}) => {
+      // Silent refetches (polling, focus, manual refresh button) skip the
+      // full-table loading state so it doesn't flash — only the very first
+      // load, or a filter/page change, shows "Loading users…".
       if (!silent) setLoading(true);
       setErrorMessage("");
       try {
@@ -96,6 +100,9 @@ export default function UserManagementPage() {
           }
         );
       } catch (err) {
+        // Background polls fail silently (a flaky poll shouldn't nag the
+        // admin), but an explicit action — first load or the refresh
+        // button — should still surface the error.
         if (!suppressError) setErrorMessage(err.message || "Couldn't load users.");
       } finally {
         if (!silent) setLoading(false);
@@ -127,7 +134,7 @@ export default function UserManagementPage() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [fetchUsers]);
 
-  
+  // Debounce search input so we're not firing a request on every keystroke.
   useEffect(() => {
     const handle = setTimeout(() => setPage(1), 400);
     return () => clearTimeout(handle);
@@ -354,6 +361,13 @@ export default function UserManagementPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
+                        <Link
+                          href={`/admin/scans?userId=${u.id}`}
+                          className="flex items-center gap-1.5 rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/5"
+                        >
+                          <Search size={12} />
+                          View scans
+                        </Link>
                         <button
                           type="button"
                           disabled={isSelf}

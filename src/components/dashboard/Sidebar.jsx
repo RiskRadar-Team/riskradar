@@ -16,6 +16,7 @@ import {
   Shield,
   Monitor,
   Users,
+  Search,
 } from "lucide-react";
 
 const navItems = [
@@ -31,6 +32,7 @@ const adminNavItems = [
   { label: "URL Management", href: "/admin/urls", icon: Link2 },
   { label: "Keyword Management", href: "/admin/keywords", icon: MessageSquare },
   { label: "User Management", href: "/admin/users", icon: Users },
+  { label: "Scan Browser", href: "/admin/scans", icon: Search },
 ];
 
 export default function Sidebar({ user, onNavigate }) {

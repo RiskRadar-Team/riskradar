@@ -10,7 +10,7 @@ const SEVERITY_TEXT = {
 
 function RiskBadge({ riskLevel }) {
   if (!riskLevel) return null;
-  const color = riskLevel.color; 
+  const color = riskLevel.color; // backend sends CSS color names: green/yellow/orange/red etc.
   return (
     <span
       className="inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold"
@@ -104,9 +104,20 @@ export default function ScanResultCard({
   isPhishing,
   recommendation,
   findings = [],
-  statistics,
   extra, // optional extra content (e.g. URL-specific feature details)
 }) {
+  // NOTE: counts are derived from `findings` itself rather than trusting a
+  // separate backend-computed `statistics` object. The backend has been
+  // observed to compute statistics BEFORE merging in AI findings, so
+  // statistics.totalFindings can undercount vs. the actual findings array
+  // (e.g. AI findings showing 0 in stats while 2 AI findings render below).
+  // Deriving here guarantees the summary line always matches what's shown.
+  const totalFindings = findings.length;
+  const criticalFindings = findings.filter((f) => f.severity >= 5).length;
+  const highFindings = findings.filter((f) => f.severity === 4).length;
+  const mediumFindings = findings.filter((f) => f.severity === 3).length;
+  const lowFindings = findings.filter((f) => f.severity <= 2).length;
+
   return (
     <div className="mt-6 rounded-xl border border-white/10 bg-[#0d1526] p-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -122,17 +133,20 @@ export default function ScanResultCard({
         </span>
       </div>
 
-      {statistics && (
+      {totalFindings > 0 && (
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
-          <span>{statistics.totalFindings} finding{statistics.totalFindings === 1 ? "" : "s"}</span>
-          {statistics.criticalFindings > 0 && (
-            <span className="text-rose-400">{statistics.criticalFindings} critical</span>
+          <span>{totalFindings} finding{totalFindings === 1 ? "" : "s"}</span>
+          {criticalFindings > 0 && (
+            <span className="text-rose-300">{criticalFindings} critical</span>
           )}
-          {statistics.mediumFindings > 0 && (
-            <span className="text-amber-400">{statistics.mediumFindings} medium</span>
+          {highFindings > 0 && (
+            <span className="text-rose-400">{highFindings} high</span>
           )}
-          {statistics.lowFindings > 0 && (
-            <span>{statistics.lowFindings} low</span>
+          {mediumFindings > 0 && (
+            <span className="text-amber-400">{mediumFindings} medium</span>
+          )}
+          {lowFindings > 0 && (
+            <span>{lowFindings} low</span>
           )}
         </div>
       )}
